@@ -1,6 +1,6 @@
-# mysql-cron-backup
+# docker-mysql-backup
 
-Run mysqldump to backup your databases periodically using the cron task manager in the container. Your backups are saved in `/backup`. You can mount any directory of your host or a docker volumes in /backup. Othwerwise, a docker volume is created in the default location.
+Run `mysqldump` to backup your databases. Your backups are saved in `/backup`. You can mount any directory of your host or a docker volume in /backup. Otherwise, a docker volume is created in the default location.
 
 ## Usage:
 
@@ -10,40 +10,32 @@ docker container run -d \
        --env MYSQL_PASS=my_password \
        --link mysql
        --volume /path/to/my/backup/folder:/backup
-       fradelg/mysql-cron-backup
+       turnopil/docker-mysql-backup
 ```
-
-### Healthcheck
-
-
-Healthcheck is provided as a basic init control.
-Container is **Healthy** after the database init phase, that is after `INIT_BACKUP` or `INIT_RESTORE_LATEST` happends without check if there is an error, **Starting** otherwise. Not other checks are actually provided.
 
 ## Variables
 
 
-- `MYSQL_HOST`: The host/ip of your mysql database.
-- `MYSQL_HOST_FILE`: The file in container where to find the host of your mysql database (cf. docker secrets). You should use either MYSQL_HOST_FILE or MYSQL_HOST (see examples below).
-- `MYSQL_PORT`: The port number of your mysql database.
+- `MYSQL_HOST`: The host/ip of your MySQL database.
+- `MYSQL_HOST_FILE`: The file in the container where to find the host of your MySQL database (cf. docker secrets). You should use either MYSQL_HOST_FILE or MYSQL_HOST (see examples below).
+- `MYSQL_PORT`: The port number of your MySQL database.
 - `MYSQL_USER`: The username of your mysql database.
-- `MYSQL_USER_FILE`: The file in container where to find the user of your mysql database (cf. docker secrets). You should use either MYSQL_USER_FILE or MYSQL_USER (see examples below).
+- `MYSQL_USER_FILE`: The file in the container where to find the user of your MySQL database (cf. docker secrets). You should use either MYSQL_USER_FILE or MYSQL_USER (see examples below).
 - `MYSQL_PASS`: The password of your mysql database.
-- `MYSQL_PASS_FILE`: The file in container where to find the password of your mysql database (cf. docker secrets). You should use either MYSQL_PASS_FILE or MYSQL_PASS (see examples below).
+- `MYSQL_PASS_FILE`: The file in the container where to find the password of your MySQL database (cf. docker secrets). You should use either MYSQL_PASS_FILE or MYSQL_PASS (see examples below).
 - `MYSQL_DATABASE`: The database name to dump. Default: `--all-databases`.
-- `MYSQL_DATABASE_FILE`: The file in container where to find the database name(s) in your mysql database (cf. docker secrets). In that file, there can be several database names: one per line. You should use either MYSQL_DATABASE or MYSQL_DATABASE_FILE (see examples below).
-- `MYSQLDUMP_OPTS`: Command line arguments to pass to mysqldump (see [mysqldump documentation](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html)).
+- `MYSQL_DATABASE_FILE`: The file in the container where to find the database name(s) in your MySQL database (cf. docker secrets). In that file, there can be several database names: one per line. You should use either MYSQL_DATABASE or MYSQL_DATABASE_FILE (see examples below).
+- `MYSQLDUMP_OPTS`: Command line arguments to pass to `mysqldump` (see [mysqldump documentation](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html)).
 - `MYSQL_SSL_OPTS`: Command line arguments to use [SSL](https://dev.mysql.com/doc/refman/5.6/en/using-encrypted-connections.html).
-- `CRON_TIME`: The interval of cron job to run mysqldump. `0 3 * * sun` by default, which is every Sunday at 03:00. It uses UTC timezone.
 - `MAX_BACKUPS`: The number of backups to keep. When reaching the limit, the old backup will be discarded. No limit by default.
 - `INIT_BACKUP`: If set, create a backup when the container starts.
-- `INIT_RESTORE_LATEST`: If set, restores latest backup.
+- `INIT_RESTORE_LATEST`: If set, restores the latest backup.
 - `EXIT_BACKUP`: If set, create a backup when the container stops.
-- `TIMEOUT`: Wait a given number of seconds for the database to be ready and make the first backup, `10s` by default. After that time, the initial attempt for backup gives up and only the Cron job will try to make a backup.
 - `GZIP_LEVEL`: Specify the level of gzip compression from 1 (quickest, least compressed) to 9 (slowest, most compressed), default is 6.
 - `USE_PLAIN_SQL`: If set, back up and restore plain SQL files without gzip.
 - `TZ`: Specify TIMEZONE in Container. E.g. "Europe/Berlin". Default is UTC.
 
-If you want to make this image the perfect companion of your MySQL container, use [docker-compose](https://docs.docker.com/compose/). You can add more services that will be able to connect to the MySQL image using the name `my_mariadb`, note that you only expose the port `3306` internally to the servers and not to the host:
+If you want to make this image the perfect companion for your MySQL container, use [docker-compose](https://docs.docker.com/compose/). You can add more services that will be able to connect to the MySQL image using the name `my_mariadb`, note that you only expose port `3306` internally to the servers and not to the host:
 
 ### Docker-compose with MYSQL_PASS env var:
 
@@ -57,15 +49,15 @@ services:
       - 3306
     volumes:
       - data:/var/lib/mysql
-      # If there is not scheme, restore the last created backup (if exists)
+      # If there is no scheme, restore the last created backup (if exists)
       - ${VOLUME_PATH}/backup/latest.${DATABASE_NAME}.sql.gz:/docker-entrypoint-initdb.d/database.sql.gz
     environment:
       - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
       - MYSQL_DATABASE=${DATABASE_NAME}
     restart: unless-stopped
 
-  mysql-cron-backup:
-    image: fradelg/mysql-cron-backup
+  docker-mysql-backup:
+    image: turnopil/docker-mysql-backup
     depends_on:
       - mariadb
     volumes:
@@ -76,8 +68,6 @@ services:
       - MYSQL_PASS=${MARIADB_ROOT_PASSWORD}
       - MAX_BACKUPS=15
       - INIT_BACKUP=0
-      # Every day at 03:00
-      - CRON_TIME=0 3 * * *
       # Make it small
       - GZIP_LEVEL=9
       # As of MySQL 8.0.21 this is needed
@@ -90,7 +80,7 @@ volumes:
 
 ### Docker-compose using docker secrets:
 
-The database root password passed to docker container by using [docker secrets](https://docs.docker.com/engine/swarm/).
+The database root password is passed to docker container by using [docker secrets](https://docs.docker.com/engine/swarm/).
 
 In example below, docker is in classic 'docker engine mode' (iow. not swarm mode) and secret sources are local files on host filesystem.
 
@@ -133,7 +123,7 @@ services:
 
   backup:
     build: .
-    image: fradelg/mysql-cron-backup
+    image: turnopil/docker-mysql-backup
     depends_on:
       - mariadb
     volumes:
@@ -147,7 +137,6 @@ services:
       - MYSQL_DATABASE_FILE=/run/secrets/mysql_database
       - MAX_BACKUPS=10
       - INIT_BACKUP=1
-      - CRON_TIME=0 0 * * *
     secrets:
       - mysql_user
       - mysql_password
@@ -174,8 +163,8 @@ docker container exec <your_mysql_backup_container_name> ls /backup
 To restore a database from a certain backup you may have to specify the database name in the variable MYSQL_DATABASE:
 
 ```YAML
-mysql-cron-backup:
-    image: fradelg/mysql-cron-backup
+docker-mysql-backup:
+    image: turnopil/docker-mysql-backup
     command: "/restore.sh /backup/201708060500.${DATABASE_NAME}.sql.gz"
     depends_on:
       - mariadb
@@ -197,12 +186,12 @@ if no database name is specified, `restore.sh` will try to find the database nam
 
 ### Automatic backup and restore on container starts and stops
 
-Set `INIT_RESTORE_LATEST` to automatic restore the last backup on startup.
-Set `EXIT_BACKUP` to automatic create a last backup on shutdown.
+Set `INIT_RESTORE_LATEST` to automatically restore the last backup on startup.
+Set `EXIT_BACKUP` to automatically create a last backup on shutdown.
 
 ```yaml
-  mysql-cron-backup:
-    image: fradelg/mysql-cron-backup
+  docker-mysql-backup:
+    image: turnopil/docker-mysql-backup
     depends_on:
       - mariadb
     volumes:
@@ -214,8 +203,6 @@ Set `EXIT_BACKUP` to automatic create a last backup on shutdown.
       - MAX_BACKUPS=15
       - INIT_RESTORE_LATEST=1
       - EXIT_BACKUP=1
-      # Every day at 03:00
-      - CRON_TIME=0 3 * * *
       # Make it small
       - GZIP_LEVEL=9
     restart: unless-stopped
@@ -233,7 +220,7 @@ Docker database image could expose a directory you could add files as init sql s
       - 3306
     volumes:
       - data:/var/lib/mysql
-      # If there is not scheme, restore using the init script (if exists)
+      # If there is no scheme, restore using the init script (if exists)
       - ./init-script.sql:/docker-entrypoint-initdb.d/database.sql.gz
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
@@ -248,7 +235,7 @@ Docker database image could expose a directory you could add files as init sql s
       - 3306
     volumes:
       - data:/var/lib/mysql
-      # If there is not scheme, restore using the init script (if exists)
+      # If there is no scheme, restore using the init script (if exists)
       - ./init-script.sql:/docker-entrypoint-initdb.d/database.sql.gz
     environment:
       - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
